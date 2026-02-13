@@ -40,14 +40,21 @@ function playChimeSound() {
   if (typeof window === 'undefined') return;
   
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    const audioContext = new AudioContextClass();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+    
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    oscillator.frequency.value = 523.25; // C5 note
+    oscillator.frequency.value = 523.25;
     oscillator.type = 'sine';
 
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
@@ -57,31 +64,39 @@ function playChimeSound() {
     oscillator.stop(audioContext.currentTime + 0.5);
 
     setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      const gain2 = audioContext.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioContext.destination);
-      osc2.frequency.value = 659.25; // E5 note
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      osc2.start(audioContext.currentTime + 0.2);
-      osc2.stop(audioContext.currentTime + 0.7);
+      try {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 659.25;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        osc2.start(audioContext.currentTime + 0.2);
+        osc2.stop(audioContext.currentTime + 0.7);
+      } catch {
+        // Ignore errors
+      }
     }, 100);
 
     setTimeout(() => {
-      const osc3 = audioContext.createOscillator();
-      const gain3 = audioContext.createGain();
-      osc3.connect(gain3);
-      gain3.connect(audioContext.destination);
-      osc3.frequency.value = 783.99; // G5 note
-      osc3.type = 'sine';
-      gain3.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      osc3.start(audioContext.currentTime + 0.4);
-      osc3.stop(audioContext.currentTime + 0.9);
+      try {
+        const osc3 = audioContext.createOscillator();
+        const gain3 = audioContext.createGain();
+        osc3.connect(gain3);
+        gain3.connect(audioContext.destination);
+        osc3.frequency.value = 783.99;
+        osc3.type = 'sine';
+        gain3.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain3.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        osc3.start(audioContext.currentTime + 0.4);
+        osc3.stop(audioContext.currentTime + 0.9);
+      } catch {
+        // Ignore errors
+      }
     }, 200);
-  } catch (error) {
+  } catch {
     // Silently fail if audio context is not available
   }
 }
@@ -90,7 +105,14 @@ function playHeartBeatSound() {
   if (typeof window === 'undefined') return;
   
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
+    const audioContext = new AudioContextClass();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+    
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -107,18 +129,22 @@ function playHeartBeatSound() {
     oscillator.stop(audioContext.currentTime + 0.1);
 
     setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      const gain2 = audioContext.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioContext.destination);
-      osc2.frequency.value = 200;
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.2, audioContext.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-      osc2.start(audioContext.currentTime + 0.15);
-      osc2.stop(audioContext.currentTime + 0.25);
+      try {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 200;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        osc2.start(audioContext.currentTime + 0.15);
+        osc2.stop(audioContext.currentTime + 0.25);
+      } catch {
+        // Ignore errors
+      }
     }, 50);
-  } catch (error) {
+  } catch {
     // Silently fail if audio context is not available
   }
 }
@@ -130,12 +156,27 @@ export default function Home() {
   const [hearts, setHearts] = useState<HeartPosition[]>([]);
   const [floatingElements, setFloatingElements] = useState<FloatingElement[]>([]);
   const [soundPlayed, setSoundPlayed] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      setPrefersReducedMotion(mediaQuery.matches);
+      
+      const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, []);
 
   useEffect(() => {
     const randomWish = valentineWishes[Math.floor(Math.random() * valentineWishes.length)];
     setWish(randomWish);
 
-    const heartPositions: HeartPosition[] = Array.from({ length: 20 }, () => ({
+    const heartCount = prefersReducedMotion ? 10 : 20;
+    const floatingCount = prefersReducedMotion ? 15 : 30;
+
+    const heartPositions: HeartPosition[] = Array.from({ length: heartCount }, () => ({
       left: Math.random() * 100,
       top: Math.random() * 100,
       animationDelay: Math.random() * 3,
@@ -143,7 +184,7 @@ export default function Home() {
     }));
     setHearts(heartPositions);
 
-    const floating: FloatingElement[] = Array.from({ length: 30 }, (_, i) => ({
+    const floating: FloatingElement[] = Array.from({ length: floatingCount }, (_, i) => ({
       id: i,
       emoji: floatingEmojis[Math.floor(Math.random() * floatingEmojis.length)],
       left: Math.random() * 100,
@@ -153,26 +194,26 @@ export default function Home() {
     }));
     setFloatingElements(floating);
 
-    if (!soundPlayed) {
+    if (!soundPlayed && !prefersReducedMotion) {
       playChimeSound();
       setTimeout(() => playHeartBeatSound(), 800);
       setSoundPlayed(true);
     }
-  }, [soundPlayed]);
+  }, [soundPlayed, prefersReducedMotion]);
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-red-500 via-pink-500 to-rose-400">
       {/* Animated hearts background */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
         {hearts.map((heart, i) => (
           <div
             key={i}
-            className="absolute text-white/20 text-4xl md:text-6xl animate-pulse"
+            className={`absolute text-white/20 text-4xl md:text-6xl ${prefersReducedMotion ? '' : 'animate-pulse'}`}
             style={{
               left: `${heart.left}%`,
               top: `${heart.top}%`,
-              animationDelay: `${heart.animationDelay}s`,
-              animationDuration: `${heart.animationDuration}s`,
+              animationDelay: prefersReducedMotion ? '0s' : `${heart.animationDelay}s`,
+              animationDuration: prefersReducedMotion ? '0s' : `${heart.animationDuration}s`,
             }}
           >
             ❤️
@@ -181,33 +222,35 @@ export default function Home() {
       </div>
 
       {/* Floating hearts, kisses, and roses */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {floatingElements.map((element) => (
-          <div
-            key={element.id}
-            className="absolute floating-animation"
-            style={{
-              left: `${element.left}%`,
-              bottom: '-50px',
-              fontSize: `${element.size}px`,
-              animationDelay: `${element.startDelay}s`,
-              animationDuration: `${element.duration}s`,
-              opacity: 0.7,
-            }}
-          >
-            {element.emoji}
-          </div>
-        ))}
-      </div>
+      {!prefersReducedMotion && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+          {floatingElements.map((element) => (
+            <div
+              key={element.id}
+              className="absolute floating-animation"
+              style={{
+                left: `${element.left}%`,
+                bottom: '-50px',
+                fontSize: `${element.size}px`,
+                animationDelay: `${element.startDelay}s`,
+                animationDuration: `${element.duration}s`,
+                opacity: 0.7,
+              }}
+            >
+              {element.emoji}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Main content */}
       <main className="relative z-10 w-full max-w-4xl px-4 sm:px-6 md:px-8 py-8 md:py-12">
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-6 sm:p-8 md:p-12 lg:p-16 text-center">
           <div className="mb-6 md:mb-8">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 mb-4">
-              Happy Valentine's Day
+              Happy Valentine&apos;s Day
             </h1>
-            <div className="text-3xl sm:text-4xl md:text-5xl mb-4">💕</div>
+            <div className="text-3xl sm:text-4xl md:text-5xl mb-4" aria-hidden="true">💕</div>
           </div>
           
           {wish && (
@@ -218,7 +261,7 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mt-8 md:mt-12 text-2xl sm:text-3xl md:text-4xl">
+          <div className="mt-8 md:mt-12 text-2xl sm:text-3xl md:text-4xl" aria-hidden="true">
             ❤️ 💖 💕 🌹 💝
           </div>
         </div>
